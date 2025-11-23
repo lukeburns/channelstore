@@ -245,6 +245,8 @@ class Channelstore extends ReadyResource {
     this.readOnly = opts.writable === false || !!opts.readOnly
     this.globalCache = this.root ? this.root.globalCache : opts.globalCache || null
     this.primaryKey = this.root ? this.root.primaryKey : opts.primaryKey || null
+    this.ed25519 = opts.ed25519 || false
+    this.secretKey = this.ed25519 ? crypto.upgrade(this.primaryKey).secretKey : this.primaryKey
     this.ns = opts.namespace || DEFAULT_NAMESPACE
     this.manifestVersion = opts.manifestVersion || 1
     this.shouldSuspend = isAndroid ? !!opts.suspend : opts.suspend !== false
@@ -353,6 +355,7 @@ class Channelstore extends ReadyResource {
       return await this.storage.setSeed(seedKey)
     } else {
       const seedKey = crypto.keyPair().secretKey.slice(0, 32)
+      this.secretKey = seedKey
       return await this.storage.setSeed(seedKey)
     }
   }
@@ -361,6 +364,7 @@ class Channelstore extends ReadyResource {
     if (this.root !== null) {
       if (this.root.opened === false) await this.root.ready()
       this.primaryKey = this.root.primaryKey
+      this.secretKey = this.root.secretKey
       return
     }
 
@@ -368,6 +372,11 @@ class Channelstore extends ReadyResource {
 
     if (this.primaryKey === null) {
       this.primaryKey = storedSeed
+      if (this.ed25519) {
+        this.secretKey = crypto.upgrade(storedSeed).secretKey
+      } else {
+        this.secretKey = storedSeed
+      }
       return
     }
   }
@@ -517,12 +526,12 @@ class Channelstore extends ReadyResource {
 
   async createKeyPair(...args) {
     if (this.opened === false) await this.ready()
-    return createKeyPair(this.primaryKey, ...args)
+    return createKeyPair(this.secretKey, this.ns, ...args)
   }
 
   async deriveSharedSecret(publicKey) {
     if (this.opened === false) await this.ready()
-    return crypto.deriveSharedSecret(this.primaryKey, publicKey)
+    return crypto.deriveSharedSecret(this.secretKey, publicKey)
   }
 
   async _preloadCheckIfExists(opts) {
@@ -566,7 +575,7 @@ class Channelstore extends ReadyResource {
     } else if (opts.keyPair) {
       result.keyPair = opts.keyPair
     } else if (opts.name) {
-      result.keyPair = createKeyPair(this.primaryKey, this.ns, opts.name)
+      result.keyPair = createKeyPair(this.secretKey, this.ns, opts.name)
     } else if (opts.publicKey) {
       result.keyPair = {
         publicKey: b4a.isBuffer(opts.publicKey) ? opts.publicKey : b4a.from(opts.publicKey)
