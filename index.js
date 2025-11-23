@@ -5,7 +5,7 @@ const sodium = require('sodium-universal')
 const crypto = require('hypercore-crypto')
 const ID = require('hypercore-id-encoding')
 const { isAndroid } = require('which-runtime')
-const { STORAGE_EMPTY } = require('hypercore-errors')
+const { STORAGE_EMPTY, ASSERTION } = require('hypercore-errors')
 
 const auditStore = require('./lib/audit.js')
 
@@ -235,7 +235,8 @@ class Channelstore extends ReadyResource {
       : Hypercore.defaultStorage(storage, {
           id: opts.id,
           allowBackup: opts.allowBackup,
-          readOnly: opts.readOnly
+          readOnly: opts.readOnly,
+          wait: opts.wait
         })
     this.streamTracker = this.root ? this.root.streamTracker : new StreamTracker()
     this.cores = this.root ? this.root.cores : new CoreTracker()
@@ -254,6 +255,12 @@ class Channelstore extends ReadyResource {
 
     this._findingPeers = null // here for legacy
     this._ongcBound = this._ongc.bind(this)
+
+    if (opts.primaryKey && !this.root && !opts.unsafe) {
+      throw ASSERTION(
+        'Passing the primary key is unsafe unless you know what you are doing. Set unsafe: true to acknowledge that'
+      )
+    }
 
     if (this.root) this.corestores.add(this)
 
@@ -301,11 +308,11 @@ class Channelstore extends ReadyResource {
     if (!this.storage.readOnly) await this.storage.db.flush()
     if (!this.shouldSuspend) return
     await log('Suspending db...')
-    await this.storage.db.suspend()
+    await this.storage.suspend()
   }
 
   resume() {
-    return this.storage.db.resume()
+    return this.storage.resume()
   }
 
   session(opts) {
@@ -391,7 +398,7 @@ class Channelstore extends ReadyResource {
     if (this.opened === false) await this.ready()
     if (
       !this.cores.opened(toHex(discoveryKey)) &&
-      !(await this.storage.has(discoveryKey, { ifMigrated: true }))
+      !(await this.storage.hasCore(discoveryKey, { ifMigrated: true }))
     )
       return
     if (this.closing) return
@@ -519,7 +526,7 @@ class Channelstore extends ReadyResource {
   }
 
   async _preloadCheckIfExists(opts) {
-    const has = await this.storage.has(opts.discoveryKey)
+    const has = await this.storage.hasCore(opts.discoveryKey)
     if (!has) throw STORAGE_EMPTY('No Hypercore is stored here')
     return this._preload(opts)
   }
@@ -631,7 +638,7 @@ class Channelstore extends ReadyResource {
 
 Channelstore.derivePublicKey = derivePublicKey
 
-module.exports =Channelstore 
+module.exports = Channelstore
 
 function isStream(s) {
   return typeof s === 'object' && s && typeof s.pipe === 'function'

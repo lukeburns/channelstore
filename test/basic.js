@@ -51,7 +51,7 @@ test('pass primary key', async function (t) {
 
   {
     const dir = await tmp(t)
-    const store = new Channelstore(dir, { primaryKey })
+    const store = new Channelstore(dir, { primaryKey, unsafe: true })
 
     t.alike(store.primaryKey, primaryKey)
 
@@ -74,7 +74,7 @@ test('pass primary key', async function (t) {
   {
     const dir = await tmp(t)
 
-    const store = new Channelstore(dir, { primaryKey })
+    const store = new Channelstore(dir, { primaryKey, unsafe: true })
 
     const core = store.get({ name: 'test' })
     await core.ready()
@@ -511,14 +511,14 @@ test('deterministic derivation of public key', async function (t) {
   const { publicKey: aliceKey, secretKey: alicePrimaryKey } = crypto.keyPair()
   const { publicKey: bobKey, secretKey: bobPrimaryKey } = crypto.keyPair()
 
-  const alice = new Channelstore(await tmp(t), { primaryKey: alicePrimaryKey })
+  const alice = new Channelstore(await tmp(t), { primaryKey: alicePrimaryKey, unsafe: true })
   const aliceSharedSecret = await alice.deriveSharedSecret(bobKey)
   const aliceToBob = await alice.createKeyPair(aliceSharedSecret)
   const core = alice.get({ keyPair: aliceToBob })
   await core.ready()
   await core.append('hi bob!')
 
-  const bob = new Channelstore(await tmp(t), { primaryKey: bobPrimaryKey })
+  const bob = new Channelstore(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
   const bobSharedSecret = await bob.deriveSharedSecret(aliceKey)
   const bobFromAlice = Channelstore.derivePublicKey(aliceKey, bobSharedSecret)
   const clone = bob.get({ publicKey: bobFromAlice })
