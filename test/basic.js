@@ -5,7 +5,7 @@ const Rache = require('rache')
 const Hypercore = require('hypercore')
 const crypto = require('hypercore-crypto')
 
-const Channelstore = require('../')
+const Corechannels = require('../')
 
 test('basic', async function (t) {
   const store = await create(t)
@@ -51,7 +51,7 @@ test('pass primary key', async function (t) {
 
   {
     const dir = await tmp(t)
-    const store = new Channelstore(dir, { primaryKey, unsafe: true })
+    const store = new Corechannels(dir, { primaryKey, unsafe: true })
 
     t.alike(store.primaryKey, primaryKey)
 
@@ -63,7 +63,7 @@ test('pass primary key', async function (t) {
     await core.close()
     await store.close()
 
-    const store2 = new Channelstore(dir)
+    const store2 = new Corechannels(dir)
     await store2.ready()
 
     t.alike(store2.primaryKey, primaryKey)
@@ -74,7 +74,7 @@ test('pass primary key', async function (t) {
   {
     const dir = await tmp(t)
 
-    const store = new Channelstore(dir, { primaryKey, unsafe: true })
+    const store = new Corechannels(dir, { primaryKey, unsafe: true })
 
     const core = store.get({ name: 'test' })
     await core.ready()
@@ -88,7 +88,7 @@ test('pass primary key', async function (t) {
 
 test('global cache is passed down', async function (t) {
   const dir = await tmp(t)
-  const store = new Channelstore(dir, { globalCache: new Rache({ maxSize: 4 }) })
+  const store = new Corechannels(dir, { globalCache: new Rache({ maxSize: 4 }) })
 
   t.ok(store.globalCache)
 
@@ -103,7 +103,7 @@ test('global cache is passed down', async function (t) {
 
 test('session pre ready', async function (t) {
   const dir = await tmp(t)
-  const store = new Channelstore(dir)
+  const store = new Corechannels(dir)
 
   const a = store.get({ name: 'test' })
   const b = a.session()
@@ -123,7 +123,7 @@ test('weak ref to react to cores opening', async function (t) {
   const s = setInterval(() => {}, 1000)
 
   const dir = await tmp(t)
-  const store = new Channelstore(dir)
+  const store = new Corechannels(dir)
 
   t.teardown(() => clearInterval(s))
   t.teardown(() => store.close())
@@ -146,7 +146,7 @@ test('weak ref to react to cores opening', async function (t) {
 
 test('session of hypercore sessions are tracked in corestore sessions', async function (t) {
   const dir = await tmp(t)
-  const store = new Channelstore(dir)
+  const store = new Corechannels(dir)
 
   const session = store.session()
 
@@ -171,7 +171,7 @@ test('session of hypercore sessions are tracked in corestore sessions', async fu
 
 test('named cores are stable', async function (t) {
   const dir = await tmp(t)
-  const store = new Channelstore(dir)
+  const store = new Corechannels(dir)
 
   await store.ready()
   const keyPair = await store.createKeyPair('test')
@@ -189,7 +189,7 @@ test('named cores are stable', async function (t) {
   await core.close()
   await store.close()
 
-  const fresh = new Channelstore(dir)
+  const fresh = new Corechannels(dir)
 
   const freshCore = fresh.get({ name: 'test' })
   await freshCore.ready()
@@ -201,13 +201,13 @@ test('named cores are stable', async function (t) {
 })
 
 test('replicates', async function (t) {
-  const store = new Channelstore(await tmp(t))
+  const store = new Corechannels(await tmp(t))
 
   const a = store.get({ name: 'foo' })
   await a.append('hello')
   await a.close()
 
-  const store2 = new Channelstore(await tmp(t))
+  const store2 = new Corechannels(await tmp(t))
   const clone = store.get(a.key)
 
   const s1 = store2.replicate(true)
@@ -225,7 +225,7 @@ test('replicates', async function (t) {
 })
 
 test('if key is passed, its available immediately', async function (t) {
-  const store = new Channelstore(await tmp(t))
+  const store = new Corechannels(await tmp(t))
 
   const a = store.get({ key: b4a.alloc(32) })
   t.alike(a.key, b4a.alloc(32))
@@ -235,7 +235,7 @@ test('if key is passed, its available immediately', async function (t) {
 })
 
 test('finding peers (compat)', async function (t) {
-  const store = new Channelstore(await tmp(t))
+  const store = new Corechannels(await tmp(t))
 
   const done = store.findingPeers()
 
@@ -254,7 +254,7 @@ test('finding peers (compat)', async function (t) {
 })
 
 test('audit', async function (t) {
-  const store = new Channelstore(await tmp(t))
+  const store = new Corechannels(await tmp(t))
 
   const a = store.get({ keyPair: crypto.keyPair() })
   const b = store.get({ keyPair: crypto.keyPair() })
@@ -286,7 +286,7 @@ test('audit', async function (t) {
 })
 
 test('open by discovery key', async function (t) {
-  const store = new Channelstore(await tmp(t))
+  const store = new Corechannels(await tmp(t))
 
   const a = store.get({ discoveryKey: b4a.alloc(32) })
 
@@ -448,7 +448,7 @@ test('manifest is persisted', async function (t) {
   const key = Hypercore.key(manifest)
 
   {
-    const store = new Channelstore(dir)
+    const store = new Corechannels(dir)
 
     const a = store.get({ key })
     await a.ready()
@@ -468,7 +468,7 @@ test('manifest is persisted', async function (t) {
   }
 
   {
-    const store = new Channelstore(dir)
+    const store = new Corechannels(dir)
 
     const a = store.get({ key })
     await a.ready()
@@ -483,11 +483,11 @@ test('manifest is persisted', async function (t) {
 test('open readOnly', async function (t) {
   const dir = await tmp(t)
 
-  const store = new Channelstore(dir)
+  const store = new Corechannels(dir)
   await store.ready()
   t.teardown(() => store.close())
 
-  const storeReadOnly = new Channelstore(dir, {
+  const storeReadOnly = new Corechannels(dir, {
     readOnly: true
   })
   await storeReadOnly.ready()
@@ -511,16 +511,16 @@ test('deterministic derivation of public key', async function (t) {
   const { publicKey: aliceKey, secretKey: alicePrimaryKey } = crypto.keyPair()
   const { publicKey: bobKey, secretKey: bobPrimaryKey } = crypto.keyPair()
 
-  const alice = new Channelstore(await tmp(t), { primaryKey: alicePrimaryKey, unsafe: true })
+  const alice = new Corechannels(await tmp(t), { primaryKey: alicePrimaryKey, unsafe: true })
   const aliceSharedSecret = await alice.deriveSharedSecret(bobKey)
   const aliceToBob = await alice.createKeyPair(aliceSharedSecret)
   const core = alice.get({ keyPair: aliceToBob })
   await core.ready()
   await core.append('hi bob!')
 
-  const bob = new Channelstore(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
+  const bob = new Corechannels(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
   const bobSharedSecret = await bob.deriveSharedSecret(aliceKey)
-  const bobFromAlice = Channelstore.derivePublicKey(aliceKey, bobSharedSecret)
+  const bobFromAlice = Corechannels.derivePublicKey(aliceKey, bobSharedSecret)
   const clone = bob.get({ publicKey: bobFromAlice })
   await clone.ready()
 
@@ -551,7 +551,7 @@ test('use ed25519 secret key as primaryKey', async function (t) {
   const { publicKey: aliceKey, secretKey: aliceSecretKey } = crypto.upgrade(alicePrimaryKey)
   const { publicKey: bobKey, secretKey: bobPrimaryKey } = crypto.keyPair()
 
-  const alice = new Channelstore(await tmp(t), {
+  const alice = new Corechannels(await tmp(t), {
     primaryKey: alicePrimaryKey,
     ed25519: true,
     unsafe: true
@@ -562,9 +562,9 @@ test('use ed25519 secret key as primaryKey', async function (t) {
   await core.ready()
   await core.append('hi bob!')
 
-  const bob = new Channelstore(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
+  const bob = new Corechannels(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
   const bobSharedSecret = await bob.deriveSharedSecret(aliceKey)
-  const bobFromAlice = Channelstore.derivePublicKey(aliceKey, bobSharedSecret)
+  const bobFromAlice = Corechannels.derivePublicKey(aliceKey, bobSharedSecret)
   const clone = bob.get({ publicKey: bobFromAlice })
   await clone.ready()
 
@@ -602,7 +602,7 @@ function toArray(stream) {
 
 async function create(t) {
   const dir = await tmp(t)
-  const store = new Channelstore(dir)
+  const store = new Corechannels(dir)
   t.teardown(() => store.close())
   return store
 }

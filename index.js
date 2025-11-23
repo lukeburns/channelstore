@@ -225,7 +225,7 @@ class FindingPeers {
   }
 }
 
-class Channelstore extends ReadyResource {
+class Corechannels extends ReadyResource {
   constructor(storage, opts = {}) {
     super()
 
@@ -320,7 +320,7 @@ class Channelstore extends ReadyResource {
   session(opts) {
     this._maybeClosed()
     const root = this.root || this
-    return new Channelstore(null, {
+    return new Corechannels(null, {
       manifestVersion: this.manifestVersion,
       ...opts,
       root
@@ -465,7 +465,7 @@ class Channelstore extends ReadyResource {
 
   _maybeClosed() {
     if (this.closing || (this.root !== null && this.root.closing)) {
-      throw new Error('Channelstore is closed')
+      throw new Error('Corechannels is closed')
     }
   }
 
@@ -645,9 +645,9 @@ class Channelstore extends ReadyResource {
   }
 }
 
-Channelstore.derivePublicKey = derivePublicKey
+Corechannels.derivePublicKey = derivePublicKey
 
-module.exports = Channelstore
+module.exports =Corechannels 
 
 function isStream(s) {
   return typeof s === 'object' && s && typeof s.pipe === 'function'

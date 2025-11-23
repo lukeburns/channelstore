@@ -1,35 +1,35 @@
-# Channelstore
+# Corechannels
 
-Channelstore is a fork of [Corestore](https://github.com/holepunchto/channelstore), a Hypercore factory that makes it easier to manage large collections of named Hypercores. The key difference is that named cores are publicly derivable by default.
+Corechannels is a fork of [Corestore](https://github.com/holepunchto/corechannels), a Hypercore factory that makes it easier to manage large collections of named Hypercores. The key difference is that named cores are publicly derivable by default.
 
-Channelstore provides:
+Corechannels provides:
 
 1. **Hierarchical Key Derivation** - All writable Hypercore keys are derived from a single master key and a user-provided name.
 2. **Session Handling** - If a single Hypercore is loaded multiple times through the `get` method, the underlying resources will only be opened once (using Hypercore 10's new session feature). Once all sessions are closed, the resources will be released.
 3. **Storage Management** - Hypercores can be stored in any `hypercore-storage` instance, where they will be keyed by their discovery keys.
-4. **Namespacing** - You can share a single Channelstore instance between multiple applications or components without worrying about naming collisions by creating "namespaces" (e.g. `channelstore.namespace('my-app').get({ name: 'main' })`)
+4. **Namespacing** - You can share a single Corechannels instance between multiple applications or components without worrying about naming collisions by creating "namespaces" (e.g. `corechannels.namespace('my-app').get({ name: 'main' })`)
 
 ### Installation
 
-`npm install channelstore` // tbd
+`npm install corechannels`
 
 ### Usage
 
-A channelstore instance can be constructed with a `hypercore-storage` instance, or a string. If a string is specified, it will be assumed to be a path to a local storage directory:
+A corechannels instance can be constructed with a `hypercore-storage` instance, or a string. If a string is specified, it will be assumed to be a path to a local storage directory:
 
 ```js
-const Channelstore = require('channelstore')
+const Corechannels = require('corechannels')
 
-const store = new Channelstore('./my-storage')
+const store = new Corechannels('./my-storage')
 const core1 = store.get({ name: 'core-1' })
 const core2 = store.get({ name: 'core-2' })
 ```
 
 ### API
 
-#### `const store = new Channelstore(storage, options = {})`
+#### `const store = new Corechannels(storage, options = {})`
 
-Create a new Channelstore instance.
+Create a new Corechannels instance.
 
 `storage` can be either a `hypercore-storage` instance or a string.
 
@@ -52,7 +52,7 @@ All other options besides `name` and `key` will be forwarded to the Hypercore co
 
 #### `const stream = store.replicate(optsOrStream)`
 
-Creates a replication stream that's capable of replicating all Hypercores that are managed by the Channelstore, assuming the remote peer has the correct capabilities.
+Creates a replication stream that's capable of replicating all Hypercores that are managed by the Corechannels, assuming the remote peer has the correct capabilities.
 
 `opts` will be forwarded to Hypercore's `replicate` function.
 
@@ -68,7 +68,7 @@ const swarm = new Hyperswarm()
 // join the relevant topic
 swarm.join(...)
 
-// simply pass the connection stream to channelstore
+// simply pass the connection stream tocorechannels 
 swarm.on('connection', (connection) => store.replicate(connection))
 ```
 
