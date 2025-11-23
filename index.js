@@ -225,7 +225,7 @@ class FindingPeers {
   }
 }
 
-class Corestore extends ReadyResource {
+class Channelstore extends ReadyResource {
   constructor(storage, opts = {}) {
     super()
 
@@ -311,7 +311,7 @@ class Corestore extends ReadyResource {
   session(opts) {
     this._maybeClosed()
     const root = this.root || this
-    return new Corestore(null, {
+    return new Channelstore(null, {
       manifestVersion: this.manifestVersion,
       ...opts,
       root
@@ -449,7 +449,7 @@ class Corestore extends ReadyResource {
 
   _maybeClosed() {
     if (this.closing || (this.root !== null && this.root.closing)) {
-      throw new Error('Corestore is closed')
+      throw new Error('Channelstore is closed')
     }
   }
 
@@ -629,9 +629,9 @@ class Corestore extends ReadyResource {
   }
 }
 
-Corestore.derivePublicKey = derivePublicKey
+Channelstore.derivePublicKey = derivePublicKey
 
-module.exports = Corestore
+module.exports =Channelstore 
 
 function isStream(s) {
   return typeof s === 'object' && s && typeof s.pipe === 'function'

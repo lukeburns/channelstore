@@ -1,6 +1,6 @@
 import test from 'brittle'
 import tmp from 'test-tmp'
-import ChannelStore from './index.js'
+import Channelstore from './index.js'
 import crypto from 'hypercore-crypto'
 
 test('example', async function (t) {
@@ -8,16 +8,16 @@ test('example', async function (t) {
   const { publicKey: aliceKey, secretKey: alicePrimaryKey } = crypto.keyPair()
   const { publicKey: bobKey, secretKey: bobPrimaryKey } = crypto.keyPair()
 
-  const alice = new ChannelStore(await tmp(t), { primaryKey: alicePrimaryKey })
+  const alice = new Channelstore(await tmp(t), { primaryKey: alicePrimaryKey })
   const aliceSharedSecret = await alice.deriveSharedSecret(bobKey)
   const aliceToBob = await alice.createKeyPair(aliceSharedSecret)
   const core = alice.get({ keyPair: aliceToBob })
   await core.ready()
   await core.append('hi bob!')
 
-  const bob = new ChannelStore(await tmp(t), { primaryKey: bobPrimaryKey })
+  const bob = new Channelstore(await tmp(t), { primaryKey: bobPrimaryKey })
   const bobSharedSecret = await bob.deriveSharedSecret(aliceKey)
-  const bobFromAlice = ChannelStore.derivePublicKey(aliceKey, bobSharedSecret)
+  const bobFromAlice = Channelstore.derivePublicKey(aliceKey, bobSharedSecret)
   const clone = bob.get({ publicKey: bobFromAlice })
   await clone.ready()
 
