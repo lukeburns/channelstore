@@ -10,7 +10,7 @@ const { STORAGE_EMPTY } = require('hypercore-errors')
 const auditStore = require('./lib/audit.js')
 
 const [NS] = crypto.namespace('corestore', 1)
-const DEFAULT_NAMESPACE = b4a.alloc(32) // This is meant to be 32 0-bytes
+const DEFAULT_NAMESPACE = null
 
 class StreamTracker {
   constructor() {
@@ -244,7 +244,7 @@ class Corestore extends ReadyResource {
     this.readOnly = opts.writable === false || !!opts.readOnly
     this.globalCache = this.root ? this.root.globalCache : opts.globalCache || null
     this.primaryKey = this.root ? this.root.primaryKey : opts.primaryKey || null
-    this.ns = DEFAULT_NAMESPACE
+    this.ns = opts.namespace || DEFAULT_NAMESPACE
     this.manifestVersion = opts.manifestVersion || 1
     this.shouldSuspend = isAndroid ? !!opts.suspend : opts.suspend !== false
     this.active = opts.active !== false
@@ -321,7 +321,7 @@ class Corestore extends ReadyResource {
   namespace(name, opts) {
     return this.session({
       ...opts,
-      namespace: deriveBytes(name)
+      namespace: deriveBytes(this.ns, name)
     })
   }
 
@@ -342,7 +342,8 @@ class Corestore extends ReadyResource {
     const seed = await this.storage.getSeed()
     if (seed !== null) return seed
     if (this.primaryKey) {
-      return this.primaryKey.slice(0, 32)
+      const seedKey = this.primaryKey.slice(0, 32)
+      return await this.storage.setSeed(seedKey)
     } else {
       const seedKey = crypto.keyPair().secretKey.slice(0, 32)
       return await this.storage.setSeed(seedKey)
@@ -528,7 +529,7 @@ class Corestore extends ReadyResource {
     if (this.opened === false) await this.ready()
 
     const discoveryKey = opts.name
-      ? await this.storage.getAlias({ name: opts.name, namespace: this.ns })
+      ? await this.storage.getAlias({ name: opts.name, namespace: this.ns || b4a.alloc(32) })
       : null
     this._maybeClosed()
 
@@ -551,13 +552,18 @@ class Corestore extends ReadyResource {
       discoveryKey,
       manifest: null
     }
-
-    if (opts.name) {
-      result.keyPair = createKeyPair(this.primaryKey, opts.name)
+    if (opts.publicKey && opts.name) {
+      result.keyPair = {
+        publicKey: derivePublicKey(opts.publicKey, this.ns, opts.name)
+      }
     } else if (opts.keyPair) {
       result.keyPair = opts.keyPair
+    } else if (opts.name) {
+      result.keyPair = createKeyPair(this.primaryKey, this.ns, opts.name)
     } else if (opts.publicKey) {
-      result.keyPair = { publicKey: b4a.isBuffer(opts.publicKey) ? opts.publicKey : b4a.from(opts.publicKey) }
+      result.keyPair = {
+        publicKey: b4a.isBuffer(opts.publicKey) ? opts.publicKey : b4a.from(opts.publicKey)
+      }
     }
 
     if (opts.manifest) {
@@ -607,7 +613,7 @@ class Corestore extends ReadyResource {
       legacy: opts.legacy,
       manifest: auth.manifest,
       globalCache: opts.globalCache || this.globalCache || null,
-      alias: opts.name ? { name: opts.name, namespace: this.ns } : null
+      alias: opts.name ? { name: opts.name, namespace: this.ns || b4a.alloc(32) } : null
     })
 
     core.onidle = () => {
@@ -632,7 +638,7 @@ function isStream(s) {
 }
 
 function deriveBytes(...args) {
-  args = args.map((arg) => (b4a.isBuffer(arg) ? arg : b4a.from(arg)))
+  args = args.filter((x) => !!x).map((arg) => (b4a.isBuffer(arg) ? arg : b4a.from(arg)))
   const out = b4a.alloc(32)
   sodium.crypto_generichash_batch(out, args)
   return out
