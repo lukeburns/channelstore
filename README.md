@@ -11,7 +11,7 @@ Channelstore provides:
 
 ### Installation
 
-`npm install channelstore`
+`npm install channelstore` // tbd
 
 ### Usage
 
