@@ -19,10 +19,12 @@ A corechannels instance can be constructed with a `hypercore-storage` instance, 
 
 ```js
 const Corechannels = require('corechannels')
-
 const store = new Corechannels('./my-storage')
-const core1 = store.get({ name: 'core-1' })
-const core2 = store.get({ name: 'core-2' })
+const core1 = store.get({ name: '~private-channel' })
+const core2 = store.get({ name: 'public-channel' })
+const core3 = store.get({ name: '@publicKey/public-channel' }) // publicKey public channel
+const core4 = store.get({ name: '@publicKey/~mail' }) // writable channel to publicKey
+const core5 = store.get({ name: 'mail@publicKey' }) // read channel from publicKey
 ```
 
 ### API
@@ -68,7 +70,7 @@ const swarm = new Hyperswarm()
 // join the relevant topic
 swarm.join(...)
 
-// simply pass the connection stream tocorechannels 
+// simply pass the connection stream tocorechannels
 swarm.on('connection', (connection) => store.replicate(connection))
 ```
 

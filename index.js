@@ -529,9 +529,10 @@ class Corechannels extends ReadyResource {
     return createKeyPair(this.secretKey, this.ns, ...args)
   }
 
-  async deriveSharedSecret(publicKey) {
-    if (this.opened === false) await this.ready()
-    return crypto.deriveSharedSecret(this.secretKey, publicKey)
+  deriveSharedSecret(publicKey) {
+    if (this.secretKey) {
+      return crypto.deriveSharedSecret(this.secretKey, publicKey)
+    }
   }
 
   async _preloadCheckIfExists(opts) {
@@ -561,6 +562,70 @@ class Corechannels extends ReadyResource {
     }
   }
 
+  _identifyNameScheme(name) {
+    // Scheme 1: '~private-channel' - private channel (starts with ~, no /, no @)
+    if (name.startsWith('~') && !name.includes('/') && !name.includes('@')) {
+      return {
+        type: 'private-writable',
+        topic: name.slice(1)
+      }
+    }
+
+    // Scheme 2: 'public-channel' - public channel (no special prefix, no /, no @)
+    if (!name.includes('/') && !name.includes('@')) {
+      return {
+        type: 'public-writable',
+        topic: name
+      }
+    }
+
+    // Check for schemes with @
+    if (name.includes('@')) {
+      // Scheme 3: '@publicKey/public-channel' - peer's public channel
+      // (starts with @, contains /, part after / doesn't start with ~)
+      if (name.startsWith('@') && name.includes('/')) {
+        const [publicKeyPart, channelPart] = name.split('/', 2)
+        if (!channelPart.startsWith('~')) {
+          return {
+            type: 'public-readable',
+            publicKey: b4a.from(publicKeyPart.slice(1), 'hex'), // Remove @
+            topic: channelPart
+          }
+        }
+      }
+
+      // Scheme 4: '@publicKey/~mail' - writable core with mail to publicKey
+      // (starts with @, contains /, part after / starts with ~)
+      if (name.startsWith('@') && name.includes('/')) {
+        const [publicKeyPart, channelPart] = name.split('/', 2)
+        if (channelPart.startsWith('~')) {
+          return {
+            type: 'readable-from-peer',
+            publicKey: b4a.from(publicKeyPart.slice(1), 'hex'), // Remove @
+            topic: channelPart.slice(1) // Remove ~
+          }
+        }
+      }
+
+      // Scheme 5: 'mail@publicKey' - readable core with mail from publicKey
+      // (contains @ but doesn't start with @, and doesn't contain /)
+      if (!name.startsWith('@') && !name.includes('/')) {
+        const [topic, publicKey] = name.split('@', 2)
+        return {
+          type: 'writable-to-peer',
+          topic,
+          publicKey: b4a.from(publicKey, 'hex')
+        }
+      }
+    }
+
+    // Fallback: return null or unknown scheme
+    return {
+      type: 'unknown',
+      name
+    }
+  }
+
   _auth(discoveryKey, opts) {
     const result = {
       keyPair: null,
@@ -568,14 +633,44 @@ class Corechannels extends ReadyResource {
       discoveryKey,
       manifest: null
     }
-    if (opts.publicKey && opts.name) {
-      result.keyPair = {
-        publicKey: derivePublicKey(opts.publicKey, this.ns, opts.name)
+    if (opts.name) {
+      const scheme = this._identifyNameScheme(opts.name)
+
+      switch (scheme.type) {
+        case 'private-writable':
+          result.keyPair = createKeyPair(this.secretKey, this.ns, this.secretKey, scheme.topic)
+          break
+        case 'public-writable':
+          result.keyPair = createKeyPair(this.secretKey, this.ns, scheme.topic)
+          break
+        case 'public-readable':
+          result.keyPair = {
+            publicKey: derivePublicKey(scheme.publicKey, this.ns, scheme.topic)
+          }
+          break
+        case 'writable-to-peer':
+          result.keyPair = createKeyPair(
+            this.secretKey,
+            this.ns,
+            crypto.deriveSharedSecret(this.secretKey, scheme.publicKey),
+            scheme.topic
+          )
+          break
+        case 'readable-from-peer':
+          result.keyPair = {
+            publicKey: derivePublicKey(
+              scheme.publicKey,
+              this.ns,
+              crypto.deriveSharedSecret(this.secretKey, scheme.publicKey),
+              scheme.topic
+            )
+          }
+          break
+        default:
+          throw new Error('Unknown scheme: ' + scheme.type)
       }
     } else if (opts.keyPair) {
       result.keyPair = opts.keyPair
-    } else if (opts.name) {
-      result.keyPair = createKeyPair(this.secretKey, this.ns, opts.name)
     } else if (opts.publicKey) {
       result.keyPair = {
         publicKey: b4a.isBuffer(opts.publicKey) ? opts.publicKey : b4a.from(opts.publicKey)
@@ -647,7 +742,7 @@ class Corechannels extends ReadyResource {
 
 Corechannels.derivePublicKey = derivePublicKey
 
-module.exports =Corechannels 
+module.exports = Corechannels
 
 function isStream(s) {
   return typeof s === 'object' && s && typeof s.pipe === 'function'

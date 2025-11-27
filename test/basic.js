@@ -542,7 +542,7 @@ test('deterministic derivation of public key', async function (t) {
 })
 
 test('use ed25519 secret key as primaryKey', async function (t) {
-  t.plan(4)
+  t.plan(1)
 
   const alicePrimaryKey = b4a.from(
     'fe09664f812e27e43982ad43f69e68b99665733a3d65cb6a0ba853d3761aafa8e1e716536d45f8f29e8f3ae79a81e44d6a7f7d5dde58187663e33e352e2285f8',
@@ -556,21 +556,13 @@ test('use ed25519 secret key as primaryKey', async function (t) {
     ed25519: true,
     unsafe: true
   })
-  const aliceSharedSecret = await alice.deriveSharedSecret(bobKey)
-  const aliceToBob = await alice.createKeyPair(aliceSharedSecret)
-  const core = alice.get({ keyPair: aliceToBob })
+  const core = alice.get({ name: `mail@${b4a.toString(bobKey, 'hex')}` })
   await core.ready()
   await core.append('hi bob!')
 
   const bob = new Corechannels(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
-  const bobSharedSecret = await bob.deriveSharedSecret(aliceKey)
-  const bobFromAlice = Corechannels.derivePublicKey(aliceKey, bobSharedSecret)
-  const clone = bob.get({ publicKey: bobFromAlice })
+  const clone = bob.get({ name: `@${b4a.toString(aliceKey, 'hex')}/~mail` })
   await clone.ready()
-
-  t.alike(core.keyPair.publicKey, aliceToBob.publicKey)
-  t.alike(aliceToBob.publicKey, bobFromAlice)
-  t.alike(bobFromAlice, clone.keyPair.publicKey)
 
   const a = alice.replicate(true)
   const b = bob.replicate(false)
@@ -582,6 +574,35 @@ test('use ed25519 secret key as primaryKey', async function (t) {
     await alice.close()
     await bob.close()
     await clone.close()
+  })
+})
+
+test('alice creates public channel and bob derives it', async function (t) {
+  t.plan(1)
+
+  const { publicKey: aliceKey, secretKey: alicePrimaryKey } = crypto.keyPair()
+  const { publicKey: bobKey, secretKey: bobPrimaryKey } = crypto.keyPair()
+
+  const alice = new Corechannels(await tmp(t), { primaryKey: alicePrimaryKey, unsafe: true })
+  const blog = alice.get({ name: 'blog' })
+  await blog.ready()
+  await blog.append('Welcome to my blog!')
+
+  const bob = new Corechannels(await tmp(t), { primaryKey: bobPrimaryKey, unsafe: true })
+  const blogClone = bob.get({ name: `@${b4a.toString(aliceKey, 'hex')}/blog` })
+  await blogClone.ready()
+
+  const a = alice.replicate(true)
+  const b = bob.replicate(false)
+  a.pipe(b).pipe(a)
+
+  blogClone.on('append', async () => {
+    const msg = (await blogClone.get(0)).toString()
+    t.alike(msg, 'Welcome to my blog!')
+    await alice.close()
+    await bob.close()
+    await blog.close()
+    await blogClone.close()
   })
 })
 
