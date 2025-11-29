@@ -634,41 +634,35 @@ class Corechannels extends ReadyResource {
     if (opts.name) {
       const scheme = this._identifyNameScheme(opts.name)
 
-      switch (scheme.type) {
-        case 'private-writable':
-          result.keyPair = createKeyPair(this.secretKey, this.ns, this.secretKey, scheme.topic)
-          break
-        case 'public-writable':
-          result.keyPair = createKeyPair(this.secretKey, this.ns, scheme.topic)
-          break
-        case 'public-readable':
-          const publicKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
-          result.keyPair = {
-            publicKey: derivePublicKey(publicKey, this.ns, scheme.topic)
-          }
-          break
-        case 'writable-to-peer':
-          const publicKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
-          result.keyPair = createKeyPair(
-            this.secretKey,
+      if (scheme.type === 'private-writable') {
+        result.keyPair = createKeyPair(this.secretKey, this.ns, this.secretKey, scheme.topic)
+      } else if (scheme.type === 'public-writable') {
+        result.keyPair = createKeyPair(this.secretKey, this.ns, scheme.topic)
+      } else if (scheme.type === 'public-readable') {
+        const canonicalKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
+        result.keyPair = {
+          publicKey: derivePublicKey(canonicalKey, this.ns, scheme.topic)
+        }
+      } else if (scheme.type === 'writable-to-peer') {
+        const canonicalKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
+        result.keyPair = createKeyPair(
+          this.secretKey,
+          this.ns,
+          crypto.deriveSharedSecret(this.secretKey, canonicalKey),
+          scheme.topic
+        )
+      } else if (scheme.type === 'readable-from-peer') {
+        const canonicalKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
+        result.keyPair = {
+          publicKey: derivePublicKey(
+            canonicalKey,
             this.ns,
-            crypto.deriveSharedSecret(this.secretKey, publicKey),
+            crypto.deriveSharedSecret(this.secretKey, canonicalKey),
             scheme.topic
           )
-          break
-        case 'readable-from-peer':
-          const publicKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
-          result.keyPair = {
-            publicKey: derivePublicKey(
-              scheme.publicKey,
-              this.ns,
-              crypto.deriveSharedSecret(this.secretKey, publicKey),
-              scheme.topic
-            )
-          }
-          break
-        default:
-          throw new Error('Unknown scheme: ' + scheme.type)
+        }
+      } else {
+        throw new Error('Unknown scheme: ' + scheme.type)
       }
     } else if (opts.keyPair) {
       result.keyPair = opts.keyPair
