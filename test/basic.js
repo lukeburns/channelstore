@@ -606,6 +606,32 @@ test('alice creates public channel and bob derives it', async function (t) {
   })
 })
 
+test('ed25519 primaryKey loads from storage and upgrades correctly', async function (t) {
+  t.plan(4)
+
+  const primaryKey = b4a.from(
+    'fe09664f812e27e43982ad43f69e68b99665733a3d65cb6a0ba853d3761aafa8e1e716536d45f8f29e8f3ae79a81e44d6a7f7d5dde58187663e33e352e2285f8',
+    'hex'
+  )
+
+  const path = await tmp(t)
+  const init = new Corechannels(path, { primaryKey, ed25519: true, unsafe: true })
+  await init.ready()
+
+  t.alike(init.primaryKey, primaryKey)
+  t.alike(init.secretKey, crypto.upgrade(primaryKey).secretKey)
+
+  await init.close()
+
+  const reload = new Corechannels(path, { ed25519: true })
+  await reload.ready()
+
+  t.alike(reload.primaryKey, primaryKey.slice(0, 32))
+  t.alike(reload.secretKey, crypto.upgrade(primaryKey).secretKey)
+
+  await reload.close()
+})
+
 function toArray(stream) {
   return new Promise((resolve, reject) => {
     const all = []

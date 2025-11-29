@@ -246,7 +246,8 @@ class Corechannels extends ReadyResource {
     this.globalCache = this.root ? this.root.globalCache : opts.globalCache || null
     this.primaryKey = this.root ? this.root.primaryKey : opts.primaryKey || null
     this.ed25519 = opts.ed25519 || false
-    this.secretKey = this.ed25519 ? crypto.upgrade(this.primaryKey).secretKey : this.primaryKey
+    this.secretKey =
+      this.ed25519 && this.primaryKey ? crypto.upgrade(this.primaryKey).secretKey : this.primaryKey
     this.ns = opts.namespace || DEFAULT_NAMESPACE
     this.manifestVersion = opts.manifestVersion || 1
     this.shouldSuspend = isAndroid ? !!opts.suspend : opts.suspend !== false
@@ -346,17 +347,14 @@ class Corechannels extends ReadyResource {
     if (session.sessions.length === 0) this.sessions.gc(session.id)
   }
 
-  // do not store if manually passed
   async _getOrSetSeed() {
     const seed = await this.storage.getSeed()
     if (seed !== null) return seed
     if (this.primaryKey) {
-      const seedKey = this.primaryKey.slice(0, 32)
-      return await this.storage.setSeed(seedKey)
+      return await this.storage.setSeed(this.primaryKey.slice(0, 32))
     } else {
-      const seedKey = crypto.keyPair().secretKey.slice(0, 32)
-      this.secretKey = seedKey
-      return await this.storage.setSeed(seedKey)
+      this.secretKey = crypto.keyPair().secretKey
+      return await this.storage.setSeed(this.secretKey.slice(0, 32))
     }
   }
 
@@ -368,16 +366,16 @@ class Corechannels extends ReadyResource {
       return
     }
 
-    const storedSeed = await this._getOrSetSeed()
-
     if (this.primaryKey === null) {
-      this.primaryKey = storedSeed
+      this.primaryKey = await this._getOrSetSeed()
       if (this.ed25519) {
-        this.secretKey = crypto.upgrade(storedSeed).secretKey
+        this.secretKey = crypto.upgrade(this.primaryKey).secretKey
       } else {
-        this.secretKey = storedSeed
+        this.secretKey = this.primaryKey
       }
       return
+    } else {
+      await this._getOrSetSeed()
     }
   }
 
