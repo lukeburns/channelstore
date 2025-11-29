@@ -642,24 +642,27 @@ class Corechannels extends ReadyResource {
           result.keyPair = createKeyPair(this.secretKey, this.ns, scheme.topic)
           break
         case 'public-readable':
+          const publicKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
           result.keyPair = {
-            publicKey: derivePublicKey(scheme.publicKey, this.ns, scheme.topic)
+            publicKey: derivePublicKey(publicKey, this.ns, scheme.topic)
           }
           break
         case 'writable-to-peer':
+          const publicKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
           result.keyPair = createKeyPair(
             this.secretKey,
             this.ns,
-            crypto.deriveSharedSecret(this.secretKey, scheme.publicKey),
+            crypto.deriveSharedSecret(this.secretKey, publicKey),
             scheme.topic
           )
           break
         case 'readable-from-peer':
+          const publicKey = crypto.upgradePublicKey(scheme.publicKey) // normalize to canonical ristretto public key
           result.keyPair = {
             publicKey: derivePublicKey(
               scheme.publicKey,
               this.ns,
-              crypto.deriveSharedSecret(this.secretKey, scheme.publicKey),
+              crypto.deriveSharedSecret(this.secretKey, publicKey),
               scheme.topic
             )
           }
