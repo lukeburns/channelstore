@@ -22,9 +22,9 @@ const Corechannels = require('corechannels')
 const store = new Corechannels('./my-storage')
 const core1 = store.get({ name: '~private-channel' })
 const core2 = store.get({ name: 'public-channel' })
-const core3 = store.get({ name: '@publicKey/public-channel' }) // publicKey public channel
-const core4 = store.get({ name: '@publicKey/~mail' }) // writable channel to publicKey
-const core5 = store.get({ name: 'mail@publicKey' }) // read channel from publicKey
+const core3 = store.get({ name: '@publicKey/public-channel' }) // readable public channel of @publicKey
+const core4 = store.get({ name: '@publicKey/~mail' }) // readable private channel from @publicKey
+const core5 = store.get({ name: 'mail@publicKey' }) // writable private channel to @publicKey
 ```
 
 ### API
